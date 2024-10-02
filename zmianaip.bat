@@ -20,13 +20,18 @@ if /i "%tryb%"=="s" (
     set /p maska="Podaj maske podsieci: "
     set /p brama="Podaj brame domyslna: "
 
+    rem Sprawdzenie, czy adres IP i brama domyslna sa rozne
+    if "%nowy_ip%"=="%brama%" (
+        echo Adres IP i brama domyslna nie moga byc takie same.
+        exit /b
+    )
+
     rem Zmiana adresu IP na statyczny
     netsh interface ipv4 set address name=%nazwa% static %nowy_ip% %maska% %brama%  
 ) else if /i "%tryb%"=="d" (
     rem Przywrócenie ustawień DHCP
     netsh interface ipv4 set address name=%nazwa% source=dhcp
     netsh interface ipv4 set dns name=%nazwa% source=dhcp
-    netsh interface ipv4 set route name=%nazwa% source=dhcp
 ) else (
     echo Nieprawidlowy wybor.
     exit /b
