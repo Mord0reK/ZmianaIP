@@ -1,9 +1,9 @@
 @echo off
 
-set /p nazwa = "Podaj nazwe interfejsu: "
-set /p nowy_ip = "Podaj nowy adres IP: "
-set /p maska = "Podaj maske podsieci: "
-set /p brama = "Podaj brame domyslna: "
+set /p nazwa="Podaj nazwe interfejsu: "
+set /p nowy_ip="Podaj nowy adres IP: "
+set /p maska="Podaj maske podsieci: "
+set /p brama="Podaj brame domyslna: "
 
 rem Zmiana adresu IP
 netsh interface ip set address name="%nazwa%" static %nowy_ip% %maska% %brama%    
