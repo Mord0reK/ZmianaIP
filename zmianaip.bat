@@ -7,8 +7,8 @@ if %errorlevel% neq 0 (
     exit /b
 )
 
-rem Wyświetlenie listy dostępnych interfejsów
-netsh interface show interface
+rem Wyświetlenie szczegółów konfiguracji wszystkich interfejsów
+netsh interface ipv4 show config
 
 pause
 
@@ -16,6 +16,7 @@ set /p nazwa="Podaj nazwe interfejsu: "
 set /p tryb="Czy chcesz ustawic statyczny adres IP (s) czy przywrocic ustawienia DHCP (d)? [s/d]: "
 
 if /i "%tryb%"=="s" (
+    :input_loop
     set /p nowy_ip="Podaj nowy adres IP: "
     set /p maska="Podaj maske podsieci: "
     set /p brama="Podaj brame domyslna: "
@@ -23,7 +24,7 @@ if /i "%tryb%"=="s" (
     rem Sprawdzenie, czy adres IP i brama domyslna sa rozne
     if "%nowy_ip%"=="%brama%" (
         echo Adres IP i brama domyslna nie moga byc takie same.
-        exit /b
+        goto input_loop
     )
 
     rem Zmiana adresu IP na statyczny
@@ -38,6 +39,6 @@ if /i "%tryb%"=="s" (
 )
 
 rem Sprawdzenie nowej konfiguracji
-netsh interface ipv4 show config name="%nazwa%"
+netsh interface ipv4 show config name=%nazwa%
 
 pause
