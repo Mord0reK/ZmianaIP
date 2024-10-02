@@ -3,13 +3,12 @@ setlocal enabledelayedexpansion
 
 :show_interfaces
 echo Listing all network interfaces...
-for /f "tokens=1,* delims=:" %%i in ('netsh interface ipv4 show interfaces ^| findstr /C:"Interface"') do (
-    if not "%%j"=="" (
-        echo Interface: %%j
-        echo ---------------------------------
-        netsh interface ipv4 show config name="%%j"
-        echo.
-    )
+for /f "skip=3 tokens=2 delims=:" %%i in ('netsh interface show interface') do (
+    set "interface_name=%%i"
+    echo Interface: !interface_name:~1!
+    echo ---------------------------------
+    netsh interface ipv4 show config name="!interface_name:~1!"
+    echo.
 )
 
 :choose_option
