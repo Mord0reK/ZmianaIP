@@ -1,46 +1,48 @@
 @echo off
+setlocal enabledelayedexpansion
 
-net session >nul 2>&1
-if %errorlevel% neq 0 (
-    echo Ten skrypt musi byc uruchomiony jako administrator.
-    pause
-    exit /b
-)
-
-rem Wyświetlenie szczegółów konfiguracji wszystkich interfejsów
-echo Szczegóły interfejsów sieciowych:
-netsh interface ipv4 show config
-
-echo.
-pause
-
-set /p nazwa="Podaj nazwe interfejsu: "
-set /p tryb="Czy chcesz ustawic statyczny adres IP (s) czy przywrocic ustawienia DHCP (d)? [s/d]: "
-
-if /i "%tryb%"=="s" (
-    :input_loop
-    set /p nowy_ip="Podaj nowy adres IP: "
-    set /p maska="Podaj maske podsieci: "
-    set /p brama="Podaj brame domyslna: "
-
-    rem Sprawdzenie, czy adres IP i brama domyslna sa rozne
-    if "%nowy_ip%"=="%brama%" (
-        echo Adres IP i brama domyslna nie moga byc takie same.
-        goto input_loop
+:show_interfaces
+echo Listing all network interfaces...
+for /f "tokens=1,* delims=:" %%i in ('netsh interface ipv4 show interfaces ^| findstr /C:"Interface"') do (
+    if not "%%j"=="" (
+        echo Interface: %%j
+        echo ---------------------------------
+        netsh interface ipv4 show config name="%%j"
+        echo.
     )
-
-    rem Zmiana adresu IP na statyczny
-    netsh interface ipv4 set address name=%nazwa% static %nowy_ip% %maska% %brama%  
-) else if /i "%tryb%"=="d" (
-    rem Przywrócenie ustawień DHCP
-    netsh interface ipv4 set address name=%nazwa% source=dhcp
-    netsh interface ipv4 set dns name=%nazwa% source=dhcp
-) else (
-    echo Nieprawidlowy wybor.
-    exit /b
 )
 
-rem Sprawdzenie nowej konfiguracji
-netsh interface ipv4 show config name=%nazwa%
+:choose_option
+echo ---------------------------------
+echo Do you want to change the IP configuration?
+echo 1. Set Static IP
+echo 2. Set DHCP
+echo 3. Exit
+set /p option=Choose an option (1-3):
 
-pause
+if "%option%"=="1" goto static_ip
+if "%option%"=="2" goto dhcp
+if "%option%"=="3" goto end
+echo Invalid option. Please try again.
+goto choose_option
+
+:static_ip
+set /p interface=Enter the interface name:
+set /p ipaddr=Enter the new static IP address:
+set /p mask=Enter the subnet mask:
+set /p gateway=Enter the gateway:
+echo Setting Static IP...
+netsh interface ipv4 set address name="%interface%" static %ipaddr% %mask% %gateway%
+echo IP configuration has been updated.
+goto end
+
+:dhcp
+set /p interface=Enter the interface name:
+echo Switching to DHCP...
+netsh interface ipv4 set address name="%interface%" source=dhcp
+echo IP configuration has been updated to DHCP.
+goto end
+
+:end
+echo Exiting program...
+exit /b
