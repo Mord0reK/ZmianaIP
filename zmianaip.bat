@@ -8,7 +8,8 @@ if %errorlevel% neq 0 (
 )
 
 rem Wyświetlenie szczegółów konfiguracji wszystkich interfejsów
-netsh interface ipv4 show config
+echo Szczegóły interfejsów sieciowych:
+for /f "tokens=2 delims=:" %%i in ('netsh interface ipv4 show config ^| findstr "Nazwa Adres Mask Brama Serwer"') do echo %%i
 
 pause
 
