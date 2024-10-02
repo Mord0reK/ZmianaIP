@@ -1,3 +1,13 @@
+@echo off
+
+rem Sprawdzenie, czy skrypt jest uruchomiony jako administrator
+net session >nul 2>&1
+if %errorlevel% neq 0 (
+	echo Ten skrypt musi byc uruchomiony jako administrator.
+	pause
+	exit /b
+)
+
 rem Wyświetlenie listy dostępnych interfejsów
 netsh interface show interface
 
@@ -15,4 +25,3 @@ rem Sprawdzenie nowej konfiguracji
 netsh interface ipv4 show config name="%nazwa%"
 
 pause
-
