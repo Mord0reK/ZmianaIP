@@ -1,5 +1,3 @@
-@echo off
-
 rem Wyświetlenie listy dostępnych interfejsów
 netsh interface show interface
 
