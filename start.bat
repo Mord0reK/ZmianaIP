@@ -3,4 +3,8 @@
 pip install ifaddr
 pip install psutil
 
-python zmianaip.py
+cls
+
+python %~dp0\zmianaip.py
+
+pause
