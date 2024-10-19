@@ -59,7 +59,7 @@ def get_gateway_for_interface(interface_name):
 
 
 def map_interface_to_standard_name(interface):
-    if "Ethernet" in interface or "Realtek" in interface or ("Intel" in interface and "Ethernet" in interface) or "LAN" in interface or "Gigabit" in interface:
+    if "Ethernet" in interface or "Realtek" in interface or ("Intel" in interface and "Ethernet" in interface) or "LAN" in interface:
         return "Ethernet"
     elif "MHz" in interface or ("Intel" in interface and "Wi-Fi" in interface):
         return "Wi-Fi"
