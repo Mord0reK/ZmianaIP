@@ -49,13 +49,20 @@ def convert_cidr_to_netmask(cidr):
 
 
 def get_gateway_for_interface(interface_name):
-    # Get gateway from psutil net_if_addrs
-    gws = psutil.net_if_addrs()
-    if interface_name in gws:
-        for addr in gws[interface_name]:
-            if addr.family == psutil.AF_INET:
-                return addr.address  # Return the IPv4 address of the gateway
-    return None
+    # Get gateway using ipconfig /all and extract "Default Gateway"
+    output = os.popen('ipconfig /all').read()
+    found_interface = False
+    default_gateway = None
+
+    for line in output.splitlines():
+        if interface_name in line:
+            found_interface = True
+        elif found_interface and "Default Gateway" in line:
+            parts = line.split(":")
+            if len(parts) > 1 and parts[1].strip():
+                default_gateway = parts[1].strip()
+                break
+    return default_gateway
 
 
 def map_interface_to_standard_name(interface):
