@@ -1,14 +1,12 @@
 import ifaddr
 import os
 import psutil
+import subprocess
 
 
 def list_interfaces():
     adapters = ifaddr.get_adapters()
     gateways = psutil.net_if_stats()
-
-    # Get default gateways from psutil
-    default_gateways = psutil.net_if_addrs()
 
     interface_list = []
     interface_count = 0  # To ensure continuous numbering
@@ -35,8 +33,7 @@ def list_interfaces():
 
         # Display gateway for the interface if available
         gateway_ip = get_gateway_for_interface(adapter.nice_name)
-        if gateway_ip:
-            print(f"  Gateway: {gateway_ip}")
+        print(f"  Gateway: {gateway_ip}")
 
         interface_list.append(adapter.nice_name)
 
@@ -49,20 +46,32 @@ def convert_cidr_to_netmask(cidr):
 
 
 def get_gateway_for_interface(interface_name):
-    # Get gateway using ipconfig /all and extract "Default Gateway"
-    output = os.popen('ipconfig /all').read()
+    # Wykonaj polecenie ipconfig /all i przetwórz wynik
+    result = subprocess.run(['ipconfig', '/all'], capture_output=True, text=True, encoding='utf-8', errors='ignore')
+    output = result.stdout
+
     found_interface = False
     default_gateway = None
 
     for line in output.splitlines():
+        # Sprawdź, czy wiersz zawiera nazwę interfejsu
         if interface_name in line:
             found_interface = True
+        # Gdy znajdziemy interfejs, szukamy "Default Gateway"
         elif found_interface and "Default Gateway" in line:
             parts = line.split(":")
             if len(parts) > 1 and parts[1].strip():
-                default_gateway = parts[1].strip()
+                default_gateway = parts[1].strip()  # Pobierz adres bramy
                 break
-    return default_gateway
+        # Jeśli znajdziemy inny interfejs, przestajemy szukać
+        elif found_interface and line == "":
+            found_interface = False
+
+    # Sprawdź, czy brama została znaleziona
+    if default_gateway:
+        return default_gateway
+    else:
+        return "Brak bramy domyślnej"
 
 
 def map_interface_to_standard_name(interface):
@@ -75,21 +84,17 @@ def map_interface_to_standard_name(interface):
 
 
 def change_interface_params(interface, ip, netmask, gateway, dns=None):
-    # Map interface name to standardized name like "Ethernet" or "Wi-Fi"
     standardized_interface = map_interface_to_standard_name(interface)
 
-    # Run the netsh command to set the static IP
     command = f'netsh interface ip set address name="{standardized_interface}" static {ip} {netmask} {gateway}'
     print(f"Wykonywanie komendy: {command}")
     result = os.system(command)
 
-    # Check if the command was successful
     if result == 0:
         print(f"Poprawnie zaaktualizowano interfejs '{standardized_interface}' z Adresem IP {ip}, Maską {netmask}, oraz Bramą {gateway}.")
     else:
         print(f"Nie udało się zmienić parametrów interfejsu '{standardized_interface}'. Sprawdź parametry i spróbuj ponownie.")
 
-    # Set DNS if provided
     if dns:
         dns_command = f'netsh interface ip set dns name="{standardized_interface}" static {dns}'
         print(f"Wykonywanie komendy DNS: {dns_command}")
@@ -106,27 +111,30 @@ if __name__ == "__main__":
         interface_list = list_interfaces()
 
         if not interface_list:
-            print("Nie znaleziono zadnych interfejsów.")
+            print("Nie znaleziono żadnych interfejsów.")
             exit(1)
 
         # Input and validation
-        interface_idx = int(input("Wprowadź numer interfejsu, który chcesz zmienić: ")) - 1
-        if interface_idx < 0 or interface_idx >= len(interface_list):
-            raise IndexError("Wybrano niepoprawny interfejs.")
-        elif interface_idx == -1:
-            print("Zakończono program.")
-            exit(0)
+        try:
+            interface_idx = int(input("Wprowadź numer interfejsu, który chcesz zmienić: ")) - 1
+            if interface_idx < 0 or interface_idx >= len(interface_list):
+                raise IndexError("Wybrano niepoprawny interfejs.")
+        except ValueError as e:
+            print(f"Błąd: {e}. Wprowadź prawidłowy numer interfejsu (liczba).")
+            exit(1)
 
         interface = interface_list[interface_idx]
-        ip = input("Wprowadź nowy adres IP: ")
-        netmask = input("Wprowadź nową Maskę Podsieci: ")
-        gateway = input("Wprowadź nowy adres bramy: ")
-        dns = input("Wprowadź nowy adres serwera DNS (Zostaw puste, jezeli nie zmieniasz): ")
+        ip = input("Wprowadź nowy adres IP: ").strip()
+        netmask = input("Wprowadź nową Maskę Podsieci: ").strip()
+        gateway = input("Wprowadź nowy adres bramy: ").strip()
+        dns = input("Wprowadź nowy adres serwera DNS (Zostaw puste, jeżeli nie zmieniasz): ").strip()
 
         # Apply the changes
         change_interface_params(interface, ip, netmask, gateway, dns if dns else None)
 
     except KeyboardInterrupt:
-        print("\nOperacja anulowana przez uzytkownika.")
-    except (IndexError, ValueError):
-        print("\nInvalid input. Please enter a valid number or parameter.")
+        print("\nOperacja anulowana przez użytkownika.")
+    except IndexError as e:
+        print(f"Błąd: {e}. Nieprawidłowy wybór interfejsu. Spróbuj ponownie.")
+    except ValueError as e:
+        print(f"Błąd: {e}. Wprowadź poprawne wartości.")
