@@ -33,7 +33,7 @@ def list_interfaces():
 
         # Display gateway for the interface if available
         gateway_ip = get_gateway_for_interface(adapter.nice_name)
-        print(f"  Gateway: {gateway_ip}")
+        print(f"  Brama: {gateway_ip}")
 
         interface_list.append(adapter.nice_name)
 
