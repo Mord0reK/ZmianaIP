@@ -2,6 +2,7 @@
 
 pip install ifaddr
 pip install psutil
+pip install subprocess
 
 cls
 
