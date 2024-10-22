@@ -35,6 +35,10 @@ def list_interfaces():
         gateway_ip = get_gateway_for_interface(adapter.nice_name)
         print(f"  Brama: {gateway_ip}")
 
+        # Display DNS server address
+        dns_server = get_dns_for_interface(adapter.nice_name)
+        print(f"  Adres DNS: {dns_server}")
+
         interface_list.append(adapter.nice_name)
 
     return interface_list
@@ -137,7 +141,29 @@ def release_and_renew_ip():
     print("Wykonywanie komendy: ipconfig /renew")
     os.system('ipconfig /renew')
 
+def get_dns_for_interface(interface_name):
+    # Wykonaj polecenie ipconfig /all i przetwórz wynik
+    result = subprocess.run(['ipconfig', '/all'], capture_output=True, text=True, encoding='utf-8', errors='ignore')
+    output = result.stdout
 
+    found_interface = False
+    dns_server = None
+
+    for line in output.splitlines():
+        if interface_name in line:
+            found_interface = True
+        elif found_interface and "DNS Servers" in line:
+            parts = line.split(":")
+            if len(parts) > 1 and parts[1].strip():
+                dns_server = parts[1].strip()  # Pobierz adres serwera DNS
+                break
+        elif found_interface and line == "":
+            found_interface = False
+
+    if dns_server:
+        return dns_server
+    else:
+        return "Brak DNS"
 
 def display_arp_table():
     print("Wykonywanie komendy: arp -a")
