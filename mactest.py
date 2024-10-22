@@ -3,7 +3,6 @@ import os
 import psutil
 import subprocess
 
-
 def list_interfaces():
     adapters = ifaddr.get_adapters()
     gateways = psutil.net_if_stats()
@@ -31,6 +30,10 @@ def list_interfaces():
             if adapter.nice_name in gateways and gateways[adapter.nice_name].isup:
                 print(f"  Status: UP")
 
+        # Display MAC address
+        mac_address = get_mac_address(adapter.nice_name)
+        print(f"  Adres MAC: {mac_address}")
+
         # Display gateway for the interface if available
         gateway_ip = get_gateway_for_interface(adapter.nice_name)
         print(f"  Brama: {gateway_ip}")
@@ -43,40 +46,80 @@ def list_interfaces():
 
     return interface_list
 
-
-def convert_cidr_to_netmask(cidr):
-    mask = (0xffffffff >> (32 - cidr)) << (32 - cidr)
-    return f"{(mask >> 24) & 0xff}.{(mask >> 16) & 0xff}.{(mask >> 8) & 0xff}.{mask & 0xff}"
-
-
-def get_gateway_for_interface(interface_name):
-    # Wykonaj polecenie ipconfig /all i przetwórz wynik
+def get_mac_address(interface_name):
     result = subprocess.run(['ipconfig', '/all'], capture_output=True, text=True, encoding='utf-8', errors='ignore')
     output = result.stdout
 
     found_interface = False
-    default_gateway = None
+    mac_address = None
 
     for line in output.splitlines():
         # Sprawdź, czy wiersz zawiera nazwę interfejsu
         if interface_name in line:
             found_interface = True
-        # Gdy znajdziemy interfejs, szukamy "Default Gateway"
-        elif found_interface and "Default Gateway" in line:
+        # Gdy znajdziemy interfejs, szukamy "Physical Address"
+        elif found_interface and "Physical Address" in line:
             parts = line.split(":")
-            if len(parts) > 1 and parts[1].strip():
-                default_gateway = parts[1].strip()  # Pobierz adres bramy
+            if len(parts) > 1:
+                mac_address = parts[1].strip()  # Pobierz adres MAC
                 break
         # Jeśli znajdziemy inny interfejs, przestajemy szukać
         elif found_interface and line == "":
             found_interface = False
 
-    # Sprawdź, czy brama została znaleziona
+    if mac_address:
+        for i in range(len(mac_address)):
+            if "-" in mac_address:
+                mac_address = mac_address.replace("-", ":")
+        return mac_address
+    else:
+        return "Brak adresu MAC"
+
+
+
+def convert_cidr_to_netmask(cidr):
+    mask = (0xffffffff >> (32 - cidr)) << (32 - cidr)
+    return f"{(mask >> 24) & 0xff}.{(mask >> 16) & 0xff}.{(mask >> 8) & 0xff}.{mask & 0xff}"
+
+def get_gateway_for_interface(interface_name):
+    result = subprocess.run(['ipconfig', '/all'], capture_output=True, text=True, encoding='utf-8', errors='ignore')
+    output = result.stdout
+    found_interface = False
+    default_gateway = None
+    for line in output.splitlines():
+        if interface_name in line:
+            found_interface = True
+        elif found_interface and "Default Gateway" in line:
+            parts = line.split(":")
+            if len(parts) > 1 and parts[1].strip():
+                default_gateway = parts[1].strip()
+                break
+        elif found_interface and line == "":
+            found_interface = False
     if default_gateway:
         return default_gateway
     else:
         return "Brak bramy domyślnej"
 
+def get_dns_for_interface(interface_name):
+    result = subprocess.run(['ipconfig', '/all'], capture_output=True, text=True, encoding='utf-8', errors='ignore')
+    output = result.stdout
+    found_interface = False
+    dns_server = None
+    for line in output.splitlines():
+        if interface_name in line:
+            found_interface = True
+        elif found_interface and "DNS Servers" in line:
+            parts = line.split(":")
+            if len(parts) > 1 and parts[1].strip():
+                dns_server = parts[1].strip()
+                break
+        elif found_interface and line == "":
+            found_interface = False
+    if dns_server:
+        return dns_server
+    else:
+        return "Brak DNS"
 
 def map_interface_to_standard_name(interface):
     if "Ethernet" in interface or "Realtek" in interface or ("Intel" in interface and "Ethernet" in interface) or "LAN" in interface:
@@ -85,7 +128,6 @@ def map_interface_to_standard_name(interface):
         return "Wi-Fi"
     else:
         return "Ethernet0"
-
 
 def change_interface_params(interface, ip, netmask, gateway, dns=None):
     standardized_interface = map_interface_to_standard_name(interface)
@@ -129,9 +171,7 @@ def change_interface_params(interface, ip, netmask, gateway, dns=None):
             else:
                 print(f"Nie udało się zmienić serwera DNS dla interfejsu '{standardized_interface}'. Sprawdź parametr DNS i spróbuj ponownie.")
 
-
 def release_and_renew_ip():
-    # Ustaw wszystkie interfejsy na DHCP
     interface_list = list_interfaces()  # Zaktualizuj dane interfejsów
     for interface in interface_list:
         dhcp(interface)  # Ustaw każdy interfejs na DHCP
@@ -141,31 +181,6 @@ def release_and_renew_ip():
     print("Wykonywanie komendy: ipconfig /renew")
     os.system('ipconfig /renew')
 
-def get_dns_for_interface(interface_name):
-    result = subprocess.run(['ipconfig', '/all'], capture_output=True, text=True, encoding='utf-8', errors='ignore')
-    output = result.stdout
-    found_interface = False
-    dns_server = None
-    for line in output.splitlines():
-        if interface_name in line:
-            found_interface = True
-        elif found_interface and "DNS Servers" in line:
-            parts = line.split(":")
-            if len(parts) > 1 and parts[1].strip():
-                dns_server = parts[1].strip()
-                break
-        elif found_interface and line == "":
-            found_interface = False
-    if dns_server:
-        return dns_server
-    else:
-        return "Brak DNS"
-
-def display_arp_table():
-    print("Wykonywanie komendy: arp -a")
-    os.system('arp -a')
-    os.system('pause')
-
 def dhcp(interface):
     standardized_interface = map_interface_to_standard_name(interface)
     dhcp_command = f'netsh interface ip set address name="{standardized_interface}" source=dhcp'
@@ -173,8 +188,6 @@ def dhcp(interface):
 
     if result == 0:
         print(f"Interfejs '{standardized_interface}' został ustawiony na pobieranie adresu IP z DHCP.")
-    elif result == "DHCP is already enabled on this interface.".upper():
-        print(f"Interfejs '{standardized_interface}' jest już skonfigurowany na DHCP.")
     else:
         print(f"Nie udało się ustawić interfejsu '{standardized_interface}' na DHCP. Sprawdź parametry i spróbuj ponownie.")
 
@@ -187,9 +200,13 @@ def dhcp(interface):
     else:
         print(f"Nie udało się zmienić serwera DNS dla interfejsu '{standardized_interface}'. Sprawdź parametr DNS i spróbuj ponownie.")
 
+def display_arp_table():
+    print("Wykonywanie komendy: arp -a")
+    os.system('arp -a')
+    os.system('pause')
+
 def clear_console():
     os.system('cls' if os.name == 'nt' else 'clear')
-
 
 if __name__ == "__main__":
     clear_console()  # Opcjonalnie, czyść konsolę na początku
@@ -212,7 +229,6 @@ if __name__ == "__main__":
             action_choice = input("Opcja: ").strip()
 
             if action_choice == '1':
-                # Input and validation for changing interface parameters
                 try:
                     interface_idx = int(input("Wprowadź numer interfejsu, który chcesz zmienić: ")) - 1
                     if interface_idx < 0 or interface_idx >= len(interface_list):
@@ -225,24 +241,20 @@ if __name__ == "__main__":
                 ip = input("Wprowadź nowe IP (zostaw puste, aby ustawić DHCP): ").strip()
                 if not ip:
                     dhcp(interface)
-                    continue  # Zmień 'break' na 'continue' tutaj, aby wrócić do menu
+                    continue
                 netmask = input("Wprowadź nową Maskę Podsieci: ").strip()
                 gateway = input("Wprowadź nową Bramę: ").strip()
                 dns = input("Wprowadź nowy DNS (Zostaw puste, jeżeli nie zmieniasz): ").strip()
 
-                # Apply the changes
                 change_interface_params(interface, ip if ip else None, netmask, gateway, dns if dns else None)
 
             elif action_choice == '2':
-                # Display interface parameters
                 list_interfaces()
 
             elif action_choice == '3':
-                # Execute the release and renew commands
                 release_and_renew_ip()
 
             elif action_choice == '4':
-                # Display ARP table
                 display_arp_table()
 
             elif action_choice == '5':
@@ -258,4 +270,3 @@ if __name__ == "__main__":
         print(f"Błąd: {e}. Nieprawidłowy wybór interfejsu. Spróbuj ponownie.")
     except ValueError as e:
         print(f"Błąd: {e}. Wprowadź poprawne wartości.")
-
